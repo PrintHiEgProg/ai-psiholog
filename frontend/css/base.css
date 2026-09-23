@@ -1,0 +1,230 @@
+/* ==========================================================================
+   Тихий час — общие токены и типографика
+   ========================================================================== */
+
+:root {
+  /* бумага и чернила */
+  --paper: #e9e6df;
+  --paper-2: #e1ddd4;
+  --paper-3: #d2ccc0;
+  --ink: #1b1916;
+  --ink-2: #5c564d;
+  --ink-3: #8d8578;
+  --line: #c8c1b4;
+
+  /* смысловые цвета */
+  --ok: #5f8a5e;
+  --danger: #a8603f;
+  --danger-ink: #8a4527;
+
+  /* свет экрана */
+  --glow: #f0c88c;
+  --glow-cool: #a9c9c4;
+  --glow-dim: #c9a878;
+
+  /* фигура */
+  --figure-1: #f6f4f0;
+  --figure-2: #cfcabf;
+  --figure-shade: #b4aea2;
+  --bezel-1: #f4f1ea;
+  --bezel-2: #ded8cd;
+  --bezel-3: #bdb6a9;
+  --bezel-edge: #9d9587;
+  --bezel-text: #8a8274;
+  --cable: #6f6759;
+  --screen-1: #2c2620;
+  --screen-2: #13110e;
+
+  --font-display: 'Newsreader', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Inter Tight', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  --radius: 14px;
+  --measure: 34rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16140f;
+    --paper-2: #1d1a15;
+    --paper-3: #262219;
+    --ink: #ece7dc;
+    --ink-2: #b0a898;
+    --ink-3: #857e70;
+    --line: #35301f;
+    --figure-1: #40392f;
+    --figure-2: #221e18;
+    --figure-shade: #191510;
+    --bezel-1: #4a4239;
+    --bezel-2: #332d26;
+    --bezel-3: #241f1a;
+    --bezel-edge: #5c5245;
+    --bezel-text: #7d7264;
+    --cable: #58503f;
+    --ok: #7fae7d;
+    --danger: #c97a55;
+    --danger-ink: #e3a07f;
+  }
+
+  body::before {
+    opacity: 0.18;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  font-feature-settings: 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* очень слабая зернистость, чтобы фон не был «пластиковым» */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+h1,
+h2,
+h3,
+p,
+figure,
+blockquote {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+  text-decoration-color: var(--ink-3);
+}
+
+a:hover {
+  text-decoration-color: var(--ink);
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 0 clamp(1.25rem, 4vw, 3.5rem);
+}
+
+/* --- кнопки -------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  padding: 0.85em 1.6em;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.btn:hover {
+  background: transparent;
+  color: var(--ink);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn--quiet {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.btn--quiet:hover {
+  border-color: var(--ink);
+  background: transparent;
+}
+
+.btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn--icon {
+  padding: 0.7em;
+  width: 2.9rem;
+  height: 2.9rem;
+}
+
+/* --- служебное ----------------------------------------------------------- */
+
+/* атрибут hidden сильнее любого display из компонентов */
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.note {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Тихий час — поговорить, когда не с кем</title>
+    <meta
+      name="description"
+      content="ИИ-собеседник, который выслушает без оценок в любое время. Разговор, дыхательные практики, заземление и дневник настроения. Бесплатно и без регистрации."
+    />
+    <meta property="og:title" content="Тихий час — поговорить, когда не с кем" />
+    <meta property="og:description" content="Выслушает без оценок, поможет выдохнуть и сделать один маленький шаг. Без регистрации." />
+    <meta name="theme-color" content="#e9e6df" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&family=Inter+Tight:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/crt.css" />
+    <link rel="stylesheet" href="/static/css/landing.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/static/vendor/three.module.js",
+          "three/addons/": "/static/vendor/jsm/"
+        }
+      }
+    </script>
+  </head>
+
+  <body class="landing">
+    <header class="top">
+      <a class="wordmark" href="/">тихий&nbsp;час</a>
+      <nav class="top-nav" aria-label="Разделы">
+        <a href="#topics">С чем приходят</a>
+        <a href="#try">Подышать</a>
+        <a href="#how">Как это работает</a>
+        <a href="#faq">Вопросы</a>
+      </nav>
+      <a class="btn btn--small" href="/app">Начать разговор</a>
+    </header>
+
+    <div class="story">
+      <!-- Сцена закреплена: на широком экране — колонка справа, на телефоне —
+           полоса сверху. Главы слева меняют позу фигуры и кадр камеры. -->
+      <div class="stage" aria-hidden="false">
+        <div class="stage-figure" id="crt-hero"></div>
+        <p class="stage-hint" id="stage-hint">нажмите — он помашет</p>
+      </div>
+
+      <main class="chapters">
+        <!-- 1. Встречает -->
+        <section class="chapter chapter--hero" data-scene="greet" data-lines="я здесь|никуда не спешим|расскажи, как ты|можно с середины">
+          <h1 class="hero-title">Поговорить, когда&nbsp;не&nbsp;с&nbsp;кем</h1>
+          <p class="hero-lede">
+            «Тихий час» выслушает в три часа ночи, не перебьёт и не осудит. Поможет
+            выдохнуть, разобраться, что с вами происходит, и сделать один маленький шаг.
+          </p>
+
+          <form class="starter" id="starter" novalidate>
+            <label class="visually-hidden" for="starter-input">Первая фраза</label>
+            <textarea id="starter-input" rows="2" maxlength="4000" placeholder="Что сейчас на душе? Одной фразы хватит…"></textarea>
+            <div class="starter-row">
+              <button class="btn" type="submit">Начать разговор</button>
+              <a class="btn btn--quiet" href="#try" data-try>Подышать за минуту</a>
+            </div>
+          </form>
+
+          <ul class="promises" aria-label="Коротко">
+            <li>Бесплатно и без регистрации</li>
+            <li>Отвечает сразу, в любое время</li>
+            <li>Разговор не пишется в базу</li>
+          </ul>
+        </section>
+
+        <!-- 2. Темы -->
+        <section class="chapter" id="topics" data-scene="sit" data-lines="о чём поговорим?|я слушаю">
+          <h2 class="chapter-title">С чем приходят</h2>
+          <p class="chapter-lede">Выберите, что ближе, — разговор начнётся с этой темы. Или просто напишите своими словами.</p>
+          <div class="topics" id="topics-grid"></div>
+        </section>
+
+        <!-- 3. Дыхание прямо на странице -->
+        <section class="chapter chapter--try" id="try" data-scene="breathe" data-lines="подышим?|минута на себя">
+          <h2 class="chapter-title">Попробуйте прямо сейчас</h2>
+          <p class="chapter-lede">
+            Одна минута ровного дыхания. Смотрите на экран психолога: круг растёт — вдох,
+            сжимается — выдох. Он дышит вместе с вами.
+          </p>
+          <div class="try-panel" id="try-panel">
+            <button class="btn" type="button" id="try-start">Начать минуту дыхания</button>
+            <p class="try-live" id="try-live" hidden>
+              <span class="try-phase" id="try-phase">вдох</span>
+              <span class="try-count" id="try-count"></span>
+            </p>
+            <div class="try-done" id="try-done" hidden>
+              <p>Как вы сейчас? Если хочется договорить — психолог уже в кресле.</p>
+              <a class="btn" href="/app?tool=mood">Продолжить разговор</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Как устроено: настоящая последовательность, поэтому с номерами -->
+        <section class="chapter" id="how" data-scene="think" data-lines="слушаю|уточняю|думаю вместе с тобой">
+          <h2 class="chapter-title">Как это работает</h2>
+          <ol class="steps">
+            <li>
+              <h3>Напишите как есть</h3>
+              <p>Сбивчиво, с середины, одним словом. Можно сначала отметить настроение — он учтёт.</p>
+            </li>
+            <li>
+              <h3>Он слушает и уточняет</h3>
+              <p>Называет то, что услышал, и задаёт один вопрос за раз. Не читает лекций и не сыпет советами.</p>
+            </li>
+            <li>
+              <h3>Итог и маленький шаг</h3>
+              <p>В конце — короткий итог: о чём говорили, что заметно, и одно посильное действие на сегодня.</p>
+            </li>
+          </ol>
+        </section>
+
+        <!-- 5. Практики -->
+        <section class="chapter" id="tools" data-scene="talk" data-lines="не только разговор|практики рядом">
+          <h2 class="chapter-title">Не только разговор</h2>
+          <div class="features">
+            <article>
+              <h3>Дыхание</h3>
+              <p>Три техники: квадрат, 4-7-8 для сна и ровное 5-5. Фигура дышит вместе с вами, на телефоне фазы чувствуются вибрацией.</p>
+            </article>
+            <article>
+              <h3>Заземление 5-4-3-2-1</h3>
+              <p>Когда накрывает тревога: пять вещей, которые видите, четыре — трогаете, и дальше. Возвращает в «сейчас».</p>
+            </article>
+            <article>
+              <h3>Дневник настроения</h3>
+              <p>Отметка за десять секунд — и видно, как меняется состояние от дня к дню. Хранится только в вашем браузере.</p>
+            </article>
+            <article>
+              <h3>Итог разговора</h3>
+              <p>Три коротких блока, которые можно скопировать или скачать — чтобы вернуться к мысли завтра.</p>
+            </article>
+            <article>
+              <h3>Голосом</h3>
+              <p>Надиктуйте сообщение, если печатать тяжело, и включите чтение ответов вслух.</p>
+            </article>
+            <article>
+              <h3>Кнопка «Мне очень плохо»</h3>
+              <p>Всегда на виду: телефоны экстренной помощи и дыхание вместе, пока набираете номер.</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- 6. Пример разговора: явно подписан как пример, не отзыв -->
+        <section class="chapter" id="example" data-scene="sit" data-lines="я рядом|продолжай">
+          <h2 class="chapter-title">Как звучит разговор</h2>
+          <p class="chapter-lede">Пример, написанный для этой страницы. Настоящие разговоры не сохраняются и нигде не публикуются.</p>
+          <div class="dialog">
+            <p class="d-user">Не могу уснуть, в голове крутится завтрашняя встреча.</p>
+            <p class="d-bot">Похоже, встреча для вас важная, и мозг пытается подготовиться к ней прямо сейчас, вместо сна. Что в ней тревожит больше всего?</p>
+            <p class="d-user">Что я растеряюсь и скажу глупость.</p>
+            <p class="d-bot">Страх растеряться при людях — очень понятный. Давайте сначала немного замедлимся: хотите сделать со мной минуту дыхания 4-7-8, а потом вернёмся к встрече?</p>
+          </div>
+        </section>
+
+        <!-- 7. Приватность -->
+        <section class="chapter" id="privacy" data-scene="sit" data-lines="между нами">
+          <h2 class="chapter-title">Что происходит с вашими словами</h2>
+          <ul class="facts">
+            <li><strong>Без аккаунта.</strong> Ни почты, ни телефона, ни имени.</li>
+            <li><strong>Без базы.</strong> История разговора живёт в памяти сервера и исчезает после перезапуска.</li>
+            <li><strong>Дневник — у вас.</strong> Отметки настроения хранятся только в этом браузере, стираются одной кнопкой.</li>
+            <li><strong>Честно о модели.</strong> Сообщения обрабатывает языковая модель — облачная (например, Groq) или локальная через Ollama. У облачной текст уходит на серверы сервиса; локальную можно поставить в настройках, и тогда ничего не покидает ваш компьютер.</li>
+          </ul>
+        </section>
+
+        <!-- 8. Вопросы -->
+        <section class="chapter" id="faq" data-scene="think" data-lines="спрашивай">
+          <h2 class="chapter-title">Вопросы</h2>
+          <div class="faq">
+            <details>
+              <summary>Это психотерапия?</summary>
+              <p>Нет. Это собеседник для эмоциональной поддержки: выслушать, помочь назвать чувства, подсказать простую практику. Он не ставит диагнозы и не назначает лечение. Если тяжело дольше пары недель, это повод прийти к живому специалисту — и он сам мягко об этом скажет.</p>
+            </details>
+            <details>
+              <summary>Это правда бесплатно?</summary>
+              <p>Да. Регистрации, подписок и платных функций нет.</p>
+            </details>
+            <details>
+              <summary>Он запомнит, что я рассказал?</summary>
+              <p>Только в пределах текущего разговора — чтобы отвечать по смыслу. Кнопка «Новый разговор» стирает историю сразу. Между визитами он вас не помнит.</p>
+            </details>
+            <details>
+              <summary>Что если мне совсем плохо?</summary>
+              <p>Нажмите «Мне очень плохо» — там телефоны, по которым ответит человек: 112 и горячая линия психологической помощи. Если в сообщении звучат мысли о самоповреждении, телефоны появятся сами, над ответом.</p>
+            </details>
+            <details>
+              <summary>Почему у него монитор вместо головы?</summary>
+              <p>Чтобы не было иллюзии, что вы говорите с человеком. Он честно машина — но внимательная и тёплая. На экране видно, что он делает: слушает, думает или отвечает.</p>
+            </details>
+          </div>
+        </section>
+
+        <!-- 9. Границы и телефоны -->
+        <section class="chapter" id="limits" data-scene="sit" data-lines="ты не один">
+          <h2 class="chapter-title">Если опасность прямо сейчас</h2>
+          <p class="chapter-lede">Программа не заменит живого человека в кризисе. Позвоните — это бесплатно.</p>
+          <ul class="helplines">
+            <li><a href="tel:112">112</a><span>Экстренные службы. Круглосуточно, с любого телефона.</span></li>
+            <li><a href="tel:+74959895050">+7 495 989-50-50</a><span>Горячая линия психологической помощи МЧС. Круглосуточно.</span></li>
+            <li><a href="tel:88002000122">8 800 2000-122</a><span>Детский телефон доверия — для детей, подростков и родителей.</span></li>
+          </ul>
+        </section>
+
+        <!-- 10. Финал -->
+        <section class="chapter chapter--final" data-scene="greet" data-wave data-lines="жду тебя|заходи">
+          <h2 class="final-title">Он уже включён и&nbsp;ждёт</h2>
+          <p class="chapter-lede">Одна фраза — и разговор начался. Без регистрации, прямо сейчас.</p>
+          <a class="btn btn--large" href="/app">Начать разговор</a>
+        </section>
+      </main>
+    </div>
+
+    <footer class="foot">
+      <span>Тихий час — ИИ-собеседник для эмоциональной поддержки</span>
+      <span class="note">Не врач, не психотерапевт, не экстренная служба.</span>
+    </footer>
+
+    <script type="module" src="/static/js/landing.js"></script>
+  </body>
+</html>

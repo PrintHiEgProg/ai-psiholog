@@ -1,0 +1,862 @@
+/* ==========================================================================
+   Экран разговора
+
+   Страница целиком по высоте окна и сама не прокручивается: прокручивается
+   только лента сообщений. Поэтому сцена с психологом никогда не уезжает
+   вверх, сколько бы ни было сообщений.
+   ========================================================================== */
+
+html:has(body.chat) {
+  height: 100%;
+}
+
+body.chat {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+/* --- шапка --------------------------------------------------------------- */
+
+.chat-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem clamp(1rem, 2.5vw, 1.75rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  text-decoration: none;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+  color: var(--ink-2);
+  font-size: 0.85rem;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+
+.status-dot[data-state='up'] {
+  background: var(--ok);
+}
+
+.status-dot[data-state='down'] {
+  background: var(--danger);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn--small {
+  padding: 0.5em 1.05em;
+  font-size: 0.9rem;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+}
+
+.icon-btn:hover {
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-btn[aria-pressed='true'] {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.icon-btn[aria-pressed='false'] .wave-1,
+.icon-btn[aria-pressed='false'] .wave-2 {
+  opacity: 0.25;
+}
+
+.icon-btn.is-live {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+@media (max-width: 40rem) {
+  .status-text {
+    display: none;
+  }
+}
+
+/* --- раскладка ------------------------------------------------------------ */
+
+.chat-main {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: clamp(300px, 36vw, 540px) minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* --- сцена --------------------------------------------------------------- */
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: radial-gradient(120% 70% at 50% 35%, var(--paper-2), transparent 70%);
+}
+
+.stage-view {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.stage-figure {
+  position: absolute;
+  inset: 0;
+}
+
+/* подпись состояния — в углу, чтобы не перекрывать фигуру */
+.stage-state {
+  position: absolute;
+  left: clamp(0.9rem, 2vw, 1.4rem);
+  top: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0.75rem 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+.stage-state::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--glow-dim);
+}
+
+.stage-collapse {
+  display: none;
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.9rem clamp(0.9rem, 2vw, 1.4rem) 1.1rem;
+  border-top: 1px solid var(--line);
+}
+
+.tool {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  font-size: 0.92rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.tool:hover,
+.tool[aria-current='true'] {
+  border-color: var(--ink);
+}
+
+.tool svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool--crisis {
+  grid-column: 1 / -1;
+  justify-content: center;
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
+  color: var(--danger-ink);
+}
+
+.tool--crisis:hover {
+  background: color-mix(in srgb, var(--danger) 10%, var(--paper));
+  border-color: var(--danger);
+}
+
+/* --- лента --------------------------------------------------------------- */
+
+.thread {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 clamp(1rem, 3vw, 2.5rem);
+}
+
+.log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.log-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.5rem 0 1.25rem;
+}
+
+.empty {
+  padding-top: clamp(0.5rem, 5vh, 3rem);
+}
+
+.empty-topic {
+  margin-bottom: 0.6rem;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+
+.empty h1 {
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  margin-bottom: 0.7rem;
+}
+
+.empty-lead {
+  max-width: 32rem;
+  color: var(--ink-2);
+}
+
+/* короткая отметка настроения */
+
+.checkin {
+  margin-top: 1.6rem;
+  padding: 1rem 1.1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.checkin-q {
+  margin-bottom: 0.7rem;
+  font-weight: 500;
+}
+
+.checkin-q .note {
+  font-weight: 400;
+  margin-left: 0.3rem;
+}
+
+.checkin-scale,
+.checkin-feelings,
+.chips,
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.checkin-feelings {
+  margin-top: 0.8rem;
+}
+
+.checkin-scale button,
+.checkin-feelings button,
+.chip,
+.choice-row button {
+  padding: 0.45em 0.9em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+}
+
+.checkin-scale button:hover,
+.checkin-feelings button:hover,
+.chip:hover,
+.choice-row button:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.checkin-scale button[aria-pressed='true'],
+.checkin-feelings button[aria-pressed='true'],
+.choice-row button[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.checkin.is-done {
+  border-style: dashed;
+}
+
+.chips {
+  margin-top: 1.4rem;
+}
+
+/* сообщения */
+
+.msg {
+  max-width: 42rem;
+}
+
+.msg--user {
+  align-self: flex-end;
+  max-width: 34rem;
+  padding: 0.8rem 1.05rem;
+  border-radius: var(--radius) var(--radius) 4px var(--radius);
+  background: var(--paper-3);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg--bot {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg--bot .cursor {
+  display: inline-block;
+  width: 0.45em;
+  height: 1.05em;
+  translate: 0 0.14em;
+  background: var(--ink-3);
+  animation: blink 1.05s steps(1, end) infinite;
+}
+
+.msg--note {
+  align-self: center;
+  color: var(--ink-3);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.msg--enter {
+  animation: msg-in 240ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* уведомления в ленте */
+
+.notice {
+  padding: 1rem 1.2rem;
+  border-left: 2px solid var(--ink-3);
+  background: var(--paper-2);
+  font-size: 0.95rem;
+}
+
+.notice h2 {
+  font-family: var(--font-ui);
+  font-size: 0.98rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  margin-bottom: 0.35rem;
+}
+
+.notice p {
+  color: var(--ink-2);
+}
+
+.notice .btn {
+  margin-top: 0.8rem;
+}
+
+.notice--crisis {
+  border-left-color: var(--danger);
+}
+
+.helplines {
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.helplines a {
+  font-weight: 500;
+  font-size: 1.05rem;
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink-3);
+}
+
+.helplines span {
+  display: block;
+  color: var(--ink-2);
+  font-size: 0.85rem;
+}
+
+/* --- панель практики ------------------------------------------------------ */
+
+.sheet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.4rem 0 1.2rem;
+  animation: msg-in 220ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.sheet[hidden] {
+  display: none;
+}
+
+.thread.has-sheet .log {
+  display: none;
+}
+
+.sheet-head,
+.sheet-body {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.sheet-head h2 {
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+}
+
+.sheet-close {
+  flex: none;
+  padding: 0.4em 0.9em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.sheet-close:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.sheet-body > * + * {
+  margin-top: 1rem;
+}
+
+.sheet-body .lead {
+  color: var(--ink-2);
+  max-width: 34rem;
+}
+
+/* выбор практики дыхания */
+
+.options {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.option {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.9rem 1.05rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+.option:hover {
+  border-color: var(--ink);
+}
+
+.option strong {
+  font-weight: 500;
+}
+
+.option span {
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+
+/* ход дыхания */
+
+.breath-live {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 1.5rem 0 0.5rem;
+  text-align: center;
+}
+
+.breath-phase {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 6vw, 3.4rem);
+  line-height: 1;
+}
+
+.breath-count {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress {
+  width: min(100%, 22rem);
+  height: 4px;
+  margin-top: 1rem;
+  border-radius: 4px;
+  background: var(--paper-3);
+  overflow: hidden;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transform-origin: left;
+}
+
+/* заземление 5-4-3-2-1 */
+
+.ground-step {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.ground-num {
+  font-family: var(--font-display);
+  font-size: 3.2rem;
+  line-height: 1;
+}
+
+.ground-fields {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.field:focus-visible {
+  border-color: var(--ink);
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+/* дневник настроения */
+
+.journal {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.4rem;
+}
+
+.journal-bars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(10px, 1fr);
+  align-items: end;
+  gap: 4px;
+  height: 96px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.journal-bars span {
+  display: block;
+  border-radius: 3px 3px 0 0;
+  background: var(--ink-2);
+  min-height: 6px;
+}
+
+.journal-legend {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-3);
+  font-size: 0.8rem;
+}
+
+/* итог */
+
+.summary h3 {
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 1.1rem 0 0.3rem;
+}
+
+.summary h3:first-child {
+  margin-top: 0;
+}
+
+.summary p {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  line-height: 1.55;
+}
+
+.loading {
+  color: var(--ink-2);
+}
+
+/* --- ввод ---------------------------------------------------------------- */
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--paper-2);
+}
+
+.composer:focus-within {
+  border-color: var(--ink);
+}
+
+.composer textarea {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  resize: none;
+  padding: 0.55rem 0;
+  max-height: 10rem;
+  line-height: 1.5;
+  outline: none;
+}
+
+.composer textarea::placeholder {
+  color: var(--ink-3);
+}
+
+.composer .btn--icon {
+  flex: none;
+  border-radius: 50%;
+}
+
+.composer-mic {
+  flex: none;
+}
+
+.composer-note {
+  width: 100%;
+  max-width: 46rem;
+  margin: 0.5rem auto 0.9rem;
+  color: var(--ink-3);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.is-streaming .composer textarea {
+  opacity: 0.6;
+}
+
+/* --- телефон и узкие окна -------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .chat-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .stage {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* полоса со сценой: фигура целиком, достаточно крупно */
+  .stage-view {
+    flex: none;
+    height: clamp(220px, 38svh, 360px);
+    transition: height 260ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+
+  .stage-collapse {
+    display: block;
+    position: absolute;
+    top: 0.6rem;
+    right: 0.7rem;
+    padding: 0.3em 0.8em;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--paper) 85%, transparent);
+    color: var(--ink-2);
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .stage-collapse .when-closed {
+    display: none;
+  }
+
+  .stage-state {
+    top: 0.6rem;
+    left: 0.7rem;
+    font-size: 0.9rem;
+  }
+
+  /* практики — одной прокручиваемой строкой */
+  .tools {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.55rem 0.8rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tools::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tool {
+    flex: none;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+  }
+
+  .tool svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .tool--crisis {
+    order: -1;
+  }
+
+  /* свёрнуто: остаётся голова и плечи, лента получает место */
+  body.stage-collapsed .stage-view {
+    height: 92px;
+  }
+
+
+
+  body.stage-collapsed .stage-collapse .when-open {
+    display: none;
+  }
+
+  body.stage-collapsed .stage-collapse .when-closed {
+    display: inline;
+  }
+
+  .thread {
+    padding: 0 0.9rem;
+  }
+
+  .log-inner {
+    padding-top: 1rem;
+  }
+
+  .empty h1 {
+    font-size: 1.7rem;
+  }
+
+  .composer-note {
+    display: none;
+  }
+
+  .composer {
+    margin-bottom: max(0.6rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-view,
+  .msg--enter,
+  .sheet {
+    transition: none;
+    animation: none;
+  }
+}

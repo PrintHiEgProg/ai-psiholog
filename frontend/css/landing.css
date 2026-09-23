@@ -1,0 +1,601 @@
+/* ==========================================================================
+   Лендинг: скролл-история
+
+   Сцена с психологом закреплена (sticky): на широком экране — колонка
+   справа во всю высоту окна, на телефоне — полоса сверху. Главы слева
+   прокручиваются, и каждая меняет позу фигуры и кадр камеры.
+   ========================================================================== */
+
+.landing {
+  overflow-x: clip;
+}
+
+/* --- шапка --------------------------------------------------------------- */
+
+/* шапка лежит поверх истории: иначе закреплённая сцена начинается под ней
+   и на высоту шапки уходит за нижний край окна */
+.top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.1rem clamp(1.25rem, 4vw, 3.5rem);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  text-decoration: none;
+}
+
+.top-nav {
+  display: flex;
+  gap: clamp(1rem, 2vw, 1.8rem);
+  margin-left: auto;
+  font-size: 0.95rem;
+}
+
+.top-nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.top-nav a:hover {
+  color: var(--ink);
+}
+
+.btn--small {
+  padding: 0.55em 1.15em;
+  font-size: 0.92rem;
+}
+
+.btn--large {
+  padding: 1em 2.1em;
+  font-size: 1.08rem;
+}
+
+/* --- история: сцена + главы ---------------------------------------------- */
+
+.story {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 46vw);
+}
+
+.stage {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  background: radial-gradient(60% 55% at 50% 48%, var(--paper-2), transparent 72%);
+}
+
+.stage-figure {
+  position: absolute;
+  inset: 0;
+}
+
+.stage-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 1.2rem;
+  translate: -50% 0;
+  color: var(--ink-3);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 0.95rem;
+  pointer-events: none;
+  transition: opacity 400ms ease;
+}
+
+.stage-hint.is-hidden {
+  opacity: 0;
+}
+
+.chapters {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.chapter {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 86vh;
+  min-height: 86svh;
+  padding: clamp(3rem, 8vh, 6rem) clamp(1.25rem, 4vw, 3.5rem);
+  max-width: 44rem;
+  margin-left: auto;
+}
+
+.chapter-title {
+  font-size: clamp(2rem, 3.6vw, 3rem);
+  margin-bottom: 1rem;
+  max-width: 18ch;
+}
+
+.chapter-lede {
+  max-width: 34rem;
+  color: var(--ink-2);
+  font-size: 1.08rem;
+}
+
+/* --- 1. герой ------------------------------------------------------------- */
+
+.chapter--hero {
+  min-height: 100vh;
+  min-height: 100svh;
+  padding-top: clamp(5.5rem, 12vh, 8rem);
+}
+
+.hero-title {
+  font-size: clamp(2.9rem, 6.2vw, 5.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin-bottom: 1.4rem;
+  max-width: 11ch;
+}
+
+.hero-lede {
+  max-width: 31rem;
+  color: var(--ink-2);
+  font-size: 1.15rem;
+}
+
+.starter {
+  margin-top: 2rem;
+  max-width: 32rem;
+}
+
+.starter textarea {
+  width: 100%;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  resize: none;
+  line-height: 1.5;
+}
+
+.starter textarea::placeholder {
+  color: var(--ink-3);
+}
+
+.starter textarea:focus-visible {
+  border-color: var(--ink);
+  outline-offset: 2px;
+}
+
+.starter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
+.promises {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.4rem;
+  margin: 1.8rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 0.92rem;
+}
+
+.promises li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.promises li::before {
+  content: '';
+  width: 0.9em;
+  height: 0.5em;
+  margin-top: -0.25em;
+  border-left: 1.6px solid var(--ok);
+  border-bottom: 1.6px solid var(--ok);
+  rotate: -45deg;
+}
+
+/* --- 2. темы -------------------------------------------------------------- */
+
+.topics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.7rem;
+  margin-top: 1.6rem;
+}
+
+.topic {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.topic:hover {
+  border-color: var(--ink);
+  transform: translateY(-2px);
+}
+
+.topic strong {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 400;
+}
+
+.topic span {
+  color: var(--ink-2);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+/* --- 3. дыхание ----------------------------------------------------------- */
+
+.try-panel {
+  margin-top: 1.8rem;
+  min-height: 7rem;
+}
+
+.try-live {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.try-phase {
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 5vw, 3.6rem);
+  line-height: 1;
+}
+
+.try-count {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.try-done {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+}
+
+.try-done p {
+  max-width: 30rem;
+}
+
+/* --- 4. шаги ------------------------------------------------------------- */
+
+.steps {
+  counter-reset: step;
+  display: grid;
+  gap: 1.6rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  column-gap: 1rem;
+}
+
+.steps li::before {
+  content: counter(step);
+  grid-row: span 2;
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--ink-3);
+}
+
+.steps h3,
+.features h3 {
+  font-family: var(--font-ui);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  margin-bottom: 0.3rem;
+}
+
+.steps p,
+.features p {
+  color: var(--ink-2);
+  max-width: 30rem;
+}
+
+/* --- 5. практики --------------------------------------------------------- */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 2rem;
+  margin-top: 0.8rem;
+}
+
+.features article {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.features p {
+  font-size: 0.95rem;
+}
+
+/* --- 6. пример разговора --------------------------------------------------- */
+
+.dialog {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.6rem;
+}
+
+.d-user {
+  justify-self: end;
+  max-width: 26rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius) var(--radius) 4px var(--radius);
+  background: var(--paper-3);
+}
+
+.d-bot {
+  max-width: 32rem;
+  font-family: var(--font-display);
+  font-size: 1.14rem;
+  line-height: 1.55;
+}
+
+/* --- 7. приватность ------------------------------------------------------- */
+
+.facts {
+  display: grid;
+  gap: 1rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.facts li {
+  max-width: 34rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--line);
+  color: var(--ink-2);
+}
+
+.facts strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* --- 8. вопросы ----------------------------------------------------------- */
+
+.faq {
+  display: grid;
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--line);
+}
+
+.faq details {
+  border-bottom: 1px solid var(--line);
+}
+
+.faq summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary::after {
+  content: '+';
+  flex: none;
+  color: var(--ink-3);
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: rotate 200ms ease;
+}
+
+.faq details[open] summary::after {
+  rotate: 45deg;
+}
+
+.faq details p {
+  max-width: 34rem;
+  padding-bottom: 1.1rem;
+  color: var(--ink-2);
+}
+
+/* --- 9. телефоны ---------------------------------------------------------- */
+
+.helplines {
+  list-style: none;
+  margin: 1.4rem 0 0;
+  padding: 0;
+  max-width: 30rem;
+}
+
+.helplines li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.helplines li:first-child {
+  border-top: 1px solid var(--line);
+}
+
+.helplines a {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  text-decoration: none;
+}
+
+.helplines a:hover {
+  text-decoration: underline;
+}
+
+.helplines span {
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+
+/* --- 10. финал ------------------------------------------------------------ */
+
+.chapter--final {
+  align-items: flex-start;
+}
+
+.final-title {
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1.04;
+  max-width: 12ch;
+  margin-bottom: 1rem;
+}
+
+.chapter--final .btn {
+  margin-top: 1.8rem;
+}
+
+/* --- подвал ------------------------------------------------------------- */
+
+.foot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 1.6rem clamp(1.25rem, 4vw, 3.5rem) 2.2rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 0.88rem;
+}
+
+/* --- одно появление на загрузке ------------------------------------------ */
+
+.chapter--hero > * {
+  animation: rise 700ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.chapter--hero > *:nth-child(2) { animation-delay: 120ms; }
+.chapter--hero > *:nth-child(3) { animation-delay: 220ms; }
+.chapter--hero > *:nth-child(4) { animation-delay: 300ms; }
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+/* --- телефон и узкие окна -------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .top-nav {
+    display: none;
+  }
+
+  /* на телефоне шапка — обычный блок над закреплённой полосой сцены */
+  .top {
+    position: relative;
+  }
+
+  .top .btn--small {
+    margin-left: auto;
+  }
+
+  .story {
+    display: block;
+  }
+
+  /* полоса со сценой закреплена сверху, главы прокручиваются под ней */
+  .stage {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    height: 44svh;
+    background: var(--paper);
+  }
+
+  .stage::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1.6rem;
+    height: 1.6rem;
+    background: linear-gradient(var(--paper), transparent);
+    pointer-events: none;
+  }
+
+  .stage-hint {
+    display: none;
+  }
+
+  .chapter {
+    min-height: 62svh;
+    margin: 0;
+    padding: 2.4rem 1.25rem;
+  }
+
+  .chapter--hero {
+    min-height: auto;
+    padding-top: 1.6rem;
+  }
+
+  .hero-title {
+    font-size: clamp(2.4rem, 11vw, 3.2rem);
+  }
+
+  .features {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topics {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .topic strong {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .topics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter--hero > * {
+    animation: none;
+  }
+  .topic {
+    transition: none;
+  }
+}

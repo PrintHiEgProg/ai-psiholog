@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Разговор — Тихий час</title>
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#e9e6df" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&family=Inter+Tight:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/crt.css" />
+    <link rel="stylesheet" href="/static/css/chat.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/static/vendor/three.module.js",
+          "three/addons/": "/static/vendor/jsm/"
+        }
+      }
+    </script>
+  </head>
+
+  <body class="chat">
+    <header class="chat-top">
+      <a class="wordmark" href="/">тихий&nbsp;час</a>
+
+      <p class="status" id="status" aria-live="polite">
+        <span class="status-dot" data-state="pending"></span>
+        <span class="status-text">проверяю связь…</span>
+      </p>
+
+      <div class="top-actions">
+        <button class="icon-btn" id="speak-toggle" type="button" aria-pressed="false" title="Читать ответы вслух" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" /><path class="wave-1" d="M15.5 9a4.2 4.2 0 0 1 0 6" /><path class="wave-2" d="M18 6.5a8 8 0 0 1 0 11" /></svg>
+          <span class="visually-hidden">Читать ответы вслух</span>
+        </button>
+        <button class="icon-btn" id="export" type="button" title="Скачать разговор">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14" /></svg>
+          <span class="visually-hidden">Скачать разговор</span>
+        </button>
+        <button class="btn btn--quiet btn--small" id="reset" type="button">Новый разговор</button>
+      </div>
+    </header>
+
+    <main class="chat-main">
+      <!-- Сцена с психологом. На широком экране — колонка слева во всю высоту,
+           на телефоне — полоса сверху. Не прокручивается вместе с лентой. -->
+      <aside class="stage" id="stage" aria-label="Психолог">
+        <div class="stage-view">
+          <div class="stage-figure" id="crt-companion"></div>
+          <p class="stage-state" id="companion-state">слушаю</p>
+          <button class="stage-collapse" id="stage-collapse" type="button" aria-expanded="true" aria-controls="stage">
+            <span class="when-open">Свернуть</span><span class="when-closed">Показать</span>
+          </button>
+        </div>
+
+        <nav class="tools" aria-label="Практики">
+          <button class="tool" type="button" data-tool="breath">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><circle cx="12" cy="12" r="7.5" /></svg>
+            Подышать
+          </button>
+          <button class="tool" type="button" data-tool="ground">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14M8 14h8M10.5 10h3M12 6v0" /></svg>
+            Заземлиться
+          </button>
+          <button class="tool" type="button" data-tool="mood">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l4-5 3 3 4-6 5 7" /></svg>
+            Настроение
+          </button>
+          <button class="tool" type="button" data-tool="summary">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h12M6 10h12M6 15h7" /></svg>
+            Итог разговора
+          </button>
+          <button class="tool tool--crisis" type="button" data-tool="crisis">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" /></svg>
+            Мне очень плохо
+          </button>
+        </nav>
+      </aside>
+
+      <section class="thread" aria-label="Разговор">
+        <div class="log" id="log">
+          <div class="log-inner" id="log-inner">
+            <div class="empty" id="empty">
+              <p class="empty-topic" id="empty-topic" hidden></p>
+              <h1>С чего начнём?</h1>
+              <p class="empty-lead">
+                Напишите как есть — можно сбивчиво и с середины. Я не веду записей
+                на сервере и не буду вас оценивать.
+              </p>
+
+              <div class="checkin" id="checkin">
+                <p class="checkin-q">Как вы сейчас? <span class="note">Можно пропустить.</span></p>
+                <div class="checkin-scale" role="group" aria-label="Настроение">
+                  <button type="button" data-mood="1">очень плохо</button>
+                  <button type="button" data-mood="2">плохо</button>
+                  <button type="button" data-mood="3">так себе</button>
+                  <button type="button" data-mood="4">нормально</button>
+                  <button type="button" data-mood="5">хорошо</button>
+                </div>
+                <div class="checkin-feelings" id="checkin-feelings" hidden></div>
+              </div>
+
+              <div class="chips" id="chips"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Панель практики открывается поверх ленты; разговор под ней сохраняется -->
+        <section class="sheet" id="sheet" hidden aria-labelledby="sheet-title">
+          <header class="sheet-head">
+            <h2 id="sheet-title"></h2>
+            <button class="sheet-close" id="sheet-close" type="button">Закрыть</button>
+          </header>
+          <div class="sheet-body" id="sheet-body"></div>
+        </section>
+
+        <form class="composer" id="composer">
+          <label class="visually-hidden" for="input">Сообщение</label>
+          <textarea id="input" rows="1" maxlength="4000" placeholder="Напишите сюда…" autocomplete="off"></textarea>
+          <button class="icon-btn composer-mic" id="mic" type="button" title="Надиктовать" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="11" rx="3" /><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" /></svg>
+            <span class="visually-hidden">Надиктовать</span>
+          </button>
+          <button class="btn btn--icon" id="send" type="submit" aria-label="Отправить">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path d="M12 19V5M12 5l-6 6M12 5l6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </form>
+
+        <p class="composer-note">
+          Это ИИ, а не врач: он не ставит диагнозы и не назначает лечение. Если
+          опасность прямо сейчас — <a href="tel:112">112</a>.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="/static/js/chat.js"></script>
+  </body>
+</html>
