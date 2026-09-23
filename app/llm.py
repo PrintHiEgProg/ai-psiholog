@@ -51,7 +51,49 @@ def model_name() -> str:
     return {
         "ollama": config.OLLAMA_MODEL,
         "demo": "демо-режим",
-    }.get(provider(), config.LLM_MODEL)
+    }.get(provider(), _RESOLVED.get(_resolve_key()) or config.LLM_MODEL)
+
+
+# --------------------------------------------------------------------------- выбор модели
+
+# Если указанной модели у сервиса нет (опечатка, модель сняли с поддержки),
+# берём первую доступную из этого списка — разговор не должен ломаться.
+# С 16.08.2026 Llama убраны из бесплатного тарифа Groq — основная теперь gpt-oss.
+PREFERRED_MODELS = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+]
+_SKIP = ("whisper", "guard", "tts", "orpheus", "playai", "distil", "safeguard", "allam", "compound")
+_FAMILIES = ("gpt-oss-120b", "llama-3.3-70b", "kimi", "llama-4", "qwen", "gpt-oss", "llama", "mistral", "gemma")
+
+_RESOLVED: dict[tuple, str] = {}
+
+
+def _resolve_key() -> tuple:
+    return (config.LLM_BASE_URL, config.LLM_MODEL)
+
+
+def pick_model(wanted: str, available: list[str]) -> str | None:
+    """Точное имя → имя, которое начинается с указанного → запасные модели."""
+    if not available or wanted in available:
+        return wanted or None
+    low = wanted.lower()
+    if low:
+        for name in available:
+            if name.lower() == low or name.lower().startswith(low) or name.lower().endswith("/" + low):
+                return name
+    for name in PREFERRED_MODELS:
+        if name in available:
+            return name
+    chat = [n for n in available if not any(bad in n.lower() for bad in _SKIP)]
+    # имена могли смениться (например, получить префикс) — ищем по семействам
+    for family in _FAMILIES:
+        for name in chat:
+            if family in name.lower():
+                return name
+    return chat[0] if chat else None
 
 
 def _timeout() -> httpx.Timeout:
@@ -167,16 +209,31 @@ class OpenAICompatible:
             headers["X-Title"] = "Tihiy chas"
         return headers
 
-    def _payload(self, messages: list[dict], max_tokens: int, temperature: float, stream: bool) -> dict:
+    async def model(self) -> str:
+        """Модель, которой реально отвечаем. Выбирается один раз на процесс."""
+        key = _resolve_key()
+        if key in _RESOLVED:
+            return _RESOLVED[key]
+        try:
+            available = await self.list_models()
+        except Exception:  # noqa: BLE001 — нет списка: пробуем как указано
+            return config.LLM_MODEL
+        chosen = pick_model(config.LLM_MODEL, available) or config.LLM_MODEL
+        if chosen != config.LLM_MODEL:
+            log.warning("Модели «%s» нет у сервиса — отвечаю моделью «%s»", config.LLM_MODEL, chosen)
+        _RESOLVED[key] = chosen
+        return chosen
+
+    def _payload(self, messages: list[dict], max_tokens: int, temperature: float, stream: bool, model: str) -> dict:
         payload = {
-            "model": config.LLM_MODEL,
+            "model": model,
             "messages": messages,
             "stream": stream,
             "temperature": temperature,
             "top_p": config.TOP_P,
             "max_tokens": max_tokens,
         }
-        if config.LLM_MODEL.startswith("openai/gpt-oss"):
+        if model.startswith("openai/gpt-oss"):
             # рассуждающая модель: думать недолго, иначе ответ съест лимит токенов
             payload["reasoning_effort"] = "low"
             payload["max_tokens"] = max_tokens + 600
@@ -188,12 +245,13 @@ class OpenAICompatible:
                 "Не задан ключ API. Добавьте в .env строку GROQ_API_KEY=gsk_… "
                 "(ключ выдают бесплатно на console.groq.com/keys) и перезапустите сервер."
             )
-        if not config.LLM_MODEL:
-            raise LLMError("Не указана модель. Добавьте в .env строку LLM_MODEL=… и перезапустите сервер.")
 
     async def stream(self, messages: list[dict]) -> AsyncIterator[str]:
         self._check_key()
-        payload = self._payload(messages, config.NUM_PREDICT, config.TEMPERATURE, True)
+        model = await self.model()
+        if not model:
+            raise LLMError("Не указана модель. Добавьте в .env строку LLM_MODEL=… и перезапустите сервер.")
+        payload = self._payload(messages, config.NUM_PREDICT, config.TEMPERATURE, True, model)
         think = _ThinkFilter()
         async with _client(_timeout()) as client:
             try:
@@ -237,7 +295,7 @@ class OpenAICompatible:
 
     async def complete(self, messages: list[dict], num_predict: int) -> str:
         self._check_key()
-        payload = self._payload(messages, num_predict, 0.5, False)
+        payload = self._payload(messages, num_predict, 0.5, False, await self.model() or config.LLM_MODEL)
         async with _client(_timeout()) as client:
             try:
                 response = await client.post(
@@ -604,3 +662,11 @@ _PROVIDERS = {
     "ollama": Ollama(),
     "demo": Demo(),
 }
+
+
+async def active_model() -> str:
+    """Какой моделью реально отвечаем (для OpenAI-совместимых — после автовыбора)."""
+    impl = _PROVIDERS[provider()]
+    if isinstance(impl, OpenAICompatible):
+        return await impl.model()
+    return model_name()

@@ -13,7 +13,7 @@ import json
 import time
 import uuid
 from collections import deque
-from typing import AsyncIterator
+from typing import AsyncIterator, Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -41,14 +41,27 @@ class ChatContext(BaseModel):
     topic: str | None = Field(default=None, max_length=80)
 
 
+class HistoryItem(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+# На Vercel и других serverless-платформах память процесса не переживает
+# переход запроса на другой экземпляр. Поэтому браузер присылает последние
+# реплики сам, и сервер подхватывает их, если своей сессии не нашёл.
+History = list[HistoryItem]
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
     session_id: str | None = None
     context: ChatContext | None = None
+    history: History = Field(default_factory=list, max_length=200)
 
 
 class SessionRequest(BaseModel):
     session_id: str | None = None
+    history: History = Field(default_factory=list, max_length=200)
 
 
 ResetRequest = SessionRequest
@@ -111,6 +124,16 @@ def _get_session(session_id: str | None) -> tuple[str, dict]:
     return new_id, session
 
 
+def _from_history(items: History) -> list[dict]:
+    """История из браузера: только реплики, обрезанные по длине, без пустых."""
+    out = []
+    for item in items[-config.MAX_HISTORY_MESSAGES :]:
+        content = item.content.strip()[: config.MAX_MESSAGE_CHARS]
+        if content:
+            out.append({"role": item.role, "content": content})
+    return out
+
+
 def _trim(messages: list[dict]) -> list[dict]:
     """Оставляем последние N сообщений, чтобы контекст не разрастался."""
     if len(messages) <= config.MAX_HISTORY_MESSAGES:
@@ -148,6 +171,9 @@ async def chat(request: ChatRequest, http: Request):
 
     session_id, session = _get_session(request.session_id)
     crisis = safety.is_crisis(text)
+
+    if not session["messages"] and request.history:
+        session["messages"] = _from_history(request.history)
 
     session["messages"].append({"role": "user", "content": text})
     session["messages"] = _trim(session["messages"])
@@ -205,6 +231,8 @@ async def summary(request: SessionRequest, http: Request):
     _check_rate(http)
     session = _SESSIONS.get(request.session_id or "")
     messages = (session or {}).get("messages", [])
+    if len(messages) < len(request.history):
+        messages = _from_history(request.history)
     user_turns = [m for m in messages if m["role"] == "user"]
     if len(user_turns) < 2:
         raise HTTPException(
@@ -258,6 +286,13 @@ async def health():
         return JSONResponse(info, status_code=503)
 
     info["status"] = "up"
+    active = await llm.active_model()
+    configured = config.LLM_MODEL if provider in ("groq", "openai") else model
+    if active and active != configured:
+        # указанной модели нет — отвечает запасная, показываем, какая именно
+        info["configured_model"] = configured
+    if active:
+        info["model"] = model = active
     exists = await llm.model_exists(model)
     info["model_status"] = {True: "yes", False: "no"}.get(exists, "unknown")
     if exists is False:

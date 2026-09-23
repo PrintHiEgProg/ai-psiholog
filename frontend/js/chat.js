@@ -112,6 +112,19 @@ function scrollDown(force = false) {
   if (force || atBottom()) log.scrollTop = log.scrollHeight;
 }
 
+/**
+ * Последние реплики для сервера. На serverless-хостинге (Vercel) сервер может
+ * не помнить разговор между запросами — тогда он восстановит его отсюда.
+ */
+function history({ exclude = '' } = {}) {
+  const items = transcript
+    .filter((item) => item.role === 'user' || item.role === 'bot')
+    .map((item) => ({ role: item.role === 'bot' ? 'assistant' : 'user', content: item.text }));
+  const last = items.at(-1);
+  if (exclude && last?.role === 'user' && last.content === exclude) items.pop();
+  return items.slice(-40);
+}
+
 function remember(item) {
   transcript.push(item);
   saveTranscript(transcript);
@@ -262,6 +275,7 @@ async function send(text, { resend = false } = {}) {
         message,
         session_id: sessionId,
         context: Object.keys(context).length ? context : undefined,
+        history: history({ exclude: message }),
       }),
       signal: controller.signal,
     });
@@ -542,8 +556,10 @@ exportButton.addEventListener('click', () => {
   );
 });
 
-/* свернуть сцену на телефоне: остаются голова и плечи, лента получает место */
-let collapsedByUser = false;
+/* Сцена на телефоне. По умолчанию свёрнута в «аватар» (голова и плечи рядом
+   с подписью), чтобы разговору доставался почти весь экран. Разворачивается
+   по кнопке «Показать» или на время дыхательной практики. */
+let expandedByUser = false;
 
 function setCollapsed(collapsed) {
   document.body.classList.toggle('stage-collapsed', collapsed);
@@ -551,21 +567,25 @@ function setCollapsed(collapsed) {
   head?.setFrame(collapsed ? 'tight' : null);
 }
 
+/** Обычное состояние: на телефоне свёрнуто, если человек сам не развернул. */
+function restoreStage() {
+  setCollapsed(narrow.matches && !expandedByUser);
+}
+
 collapseButton.addEventListener('click', () => {
-  collapsedByUser = !document.body.classList.contains('stage-collapsed');
-  setCollapsed(collapsedByUser);
+  expandedByUser = document.body.classList.contains('stage-collapsed');
+  restoreStage();
 });
 
-// когда на телефоне открывается клавиатура, сцена сама уступает место
+// когда на телефоне открывается клавиатура, сцена уступает место
 input.addEventListener('focus', () => {
   if (narrow.matches) setCollapsed(true);
 });
 input.addEventListener('blur', () => {
-  if (narrow.matches && !collapsedByUser) setTimeout(() => setCollapsed(false), 150);
+  if (narrow.matches) setTimeout(restoreStage, 150);
 });
-narrow.addEventListener('change', () => {
-  if (!narrow.matches) setCollapsed(false);
-});
+narrow.addEventListener('change', restoreStage);
+restoreStage();
 
 /* ------------------------------------------------------------ практики */
 
@@ -574,11 +594,13 @@ const tools = createTools({
   addNote,
   prefill,
   sessionId: () => sessionId,
+  history: () => history(),
   setMood: setMoodContext,
   // на телефоне текстовым практикам нужно место, дыханию — крупная фигура
   onSheet: (name) => {
-    if (!narrow.matches || collapsedByUser) return;
-    setCollapsed(Boolean(name) && name !== 'breath');
+    if (!narrow.matches) return;
+    if (name === 'breath') setCollapsed(false);
+    else restoreStage();
   },
 });
 
@@ -616,7 +638,7 @@ async function checkHealth() {
       return true;
     }
     const label = `${PROVIDERS[data.provider] || 'модель'} · ${shortModel(data.model)}`;
-    statusText.title = data.model;
+    statusText.title = data.configured_model ? `${data.model} (вместо ${data.configured_model})` : data.model;
     if (data.model_status === 'no') {
       statusText.textContent = `${shortModel(data.model)} не найдена`;
       addNotice({
@@ -625,7 +647,7 @@ async function checkHealth() {
         message:
           data.provider === 'ollama'
             ? `Установите её: ollama pull ${data.model} (для облачных моделей сначала ollama signin) или укажите другую в .env.`
-            : `Укажите в .env другую модель в LLM_MODEL, например: ${(data.models || []).slice(0, 4).join(', ')}.`,
+            : `Укажите в .env другую модель в LLM_MODEL, например: ${(data.models || []).filter((m) => !/whisper|guard|tts|orpheus|playai/i.test(m)).slice(0, 4).join(', ')}.`,
       });
     } else {
       statusText.textContent = `${label} на связи`;

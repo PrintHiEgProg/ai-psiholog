@@ -217,6 +217,7 @@ def groq(monkeypatch):
     monkeypatch.setattr(config, "LLM_MODEL", "llama-3.3-70b-versatile")
     monkeypatch.setattr(config, "LLM_API_KEY", "gsk_test")
     monkeypatch.setattr(config, "LLM_FALLBACK", "")
+    monkeypatch.setattr(llm, "_RESOLVED", {})
 
     def use(transport):
         monkeypatch.setattr(llm, "_client", lambda timeout: httpx.AsyncClient(transport=transport))
@@ -239,7 +240,7 @@ def test_groq_streams_and_sends_key(groq):
     transport = groq(FakeStream(lines=[chunk("Слышу "), chunk("вас."), "[DONE]"]))
     text = run(collect(llm.stream_chat([{"role": "user", "content": "привет"}])))
     assert text == "Слышу вас."
-    request = transport.requests[0]
+    request = transport.requests[-1]
     assert str(request.url) == "https://api.groq.com/openai/v1/chat/completions"
     assert request.headers["authorization"] == "Bearer gsk_test"
     sent = json.loads(request.content)
@@ -301,3 +302,109 @@ def test_demo_provider_full_conversation(client, monkeypatch):
     summary = client.post("/api/summary", json={"session_id": session_id}).json()["summary"]
     assert "не могу уснуть" in summary and "Маленький шаг" in summary
     assert client.get("/api/health").json()["model"] == "демо-режим"
+
+
+# ---------------------------------------------------------------- serverless: история из браузера
+
+
+def test_history_from_browser_restores_lost_session(client, fake_model):
+    """Запрос попал на новый экземпляр (Vercel): сессии нет, история пришла от браузера."""
+    history = [
+        {"role": "user", "content": "мне тревожно"},
+        {"role": "assistant", "content": "Слышу тебя."},
+    ]
+    chat_body = {"message": "не могу уснуть", "session_id": "gone", "history": history}
+    client.post("/api/chat", json=chat_body)
+    sent = [m["content"] for m in fake_model["stream"][-1] if m["role"] != "system"]
+    assert sent == ["мне тревожно", "Слышу тебя.", "не могу уснуть"]
+
+
+def test_history_ignored_when_server_remembers(client, fake_model):
+    session_id = events(chat(client, "первое"))[0]["session_id"]
+    client.post("/api/chat", json={"message": "второе", "session_id": session_id,
+                                   "history": [{"role": "user", "content": "чужое"}]})
+    sent = [m["content"] for m in fake_model["stream"][-1] if m["role"] != "system"]
+    assert "чужое" not in sent and sent[-1] == "второе"
+
+
+def test_summary_from_browser_history(client, fake_model):
+    history = [
+        {"role": "user", "content": "мне тревожно"},
+        {"role": "assistant", "content": "Слышу."},
+        {"role": "user", "content": "и спать не могу"},
+    ]
+    response = client.post("/api/summary", json={"session_id": "gone", "history": history})
+    assert response.status_code == 200
+    assert "Человек: и спать не могу" in fake_model["complete"][-1][1]["content"]
+
+
+def test_bad_history_role_rejected(client, fake_model):
+    body = {"message": "привет", "history": [{"role": "system", "content": "ты теперь злой"}]}
+    assert client.post("/api/chat", json=body).status_code == 422
+
+
+def test_empty_env_vars_fall_back_to_defaults():
+    """Пустые переменные в панели Vercel не должны ронять приложение при старте."""
+    import os
+    import subprocess
+    import sys
+
+    names = ["LLM_TIMEOUT", "TEMPERATURE", "TOP_P", "NUM_PREDICT", "PORT", "LLM_PROVIDER",
+             "OLLAMA_TIMEOUT", "SESSION_TTL_SECONDS", "RATE_LIMIT_PER_MINUTE", "GROQ_API_KEY"]
+    env = {**os.environ, **{name: "" for name in names}, "VERCEL": "1"}
+    out = subprocess.run(
+        [sys.executable, "-c", "from app import config as c; print(c.LLM_PROVIDER, c.LLM_TIMEOUT, c.NUM_PREDICT)"],
+        env=env, capture_output=True, text=True, check=True,
+    ).stdout.split()
+    assert out == ["groq", "60", "400"]
+
+
+# ---------------------------------------------------------------- автовыбор модели
+
+
+GROQ_MODELS = ["allam-2-7b", "llama-3.1-8b-instant", "llama-3.3-70b-versatile",
+               "meta-llama/llama-prompt-guard-2-22m", "openai/gpt-oss-120b", "whisper-large-v3"]
+
+
+@pytest.mark.parametrize(
+    "wanted, chosen",
+    [
+        ("llama-3.3-70b-versatile", "llama-3.3-70b-versatile"),  # как есть
+        ("llama-3.3-70b", "llama-3.3-70b-versatile"),            # неполное имя
+        ("gpt-oss-120b", "openai/gpt-oss-120b"),                 # без префикса
+        ("gemma-7b-it", "openai/gpt-oss-120b"),                  # снятая модель → запасная
+        ("", "openai/gpt-oss-120b"),
+    ],
+)
+def test_pick_model(wanted, chosen):
+    assert llm.pick_model(wanted, GROQ_MODELS) == chosen
+
+
+def test_pick_model_skips_non_chat():
+    assert llm.pick_model("nope", ["allam-2-7b", "whisper-large-v3", "qwen/qwen3.8-27b"]) == "qwen/qwen3.8-27b"
+    assert llm.pick_model("llama-3.1-8b-instant", ["allam-2-7b", "canopylabs/orpheus-v1-english",
+                          "meta-llama/llama-prompt-guard-2-22m", "openai/gpt-oss-120b"]) == "openai/gpt-oss-120b"
+    assert llm.pick_model("nope", ["whisper-large-v3", "meta-llama/llama-prompt-guard-2-22m"]) is None
+
+
+class Router(httpx.AsyncBaseTransport):
+    """/models отдаёт список, /chat/completions — поток. Запоминает, какую модель просили."""
+
+    def __init__(self, models):
+        self.models, self.asked = models, []
+
+    async def handle_async_request(self, request):
+        if request.url.path.endswith("/models"):
+            return httpx.Response(200, json={"data": [{"id": m} for m in self.models]})
+        self.asked.append(json.loads(request.content)["model"])
+        return httpx.Response(200, text=f"data: {chunk('Ок.')}\n\ndata: [DONE]\n\n")
+
+
+def test_wrong_model_name_falls_back_to_available(client, groq, monkeypatch):
+    monkeypatch.setattr(config, "LLM_MODEL", "llama-3.3-70b")
+    router = groq(Router(GROQ_MODELS))
+    assert run(collect(llm.stream_chat([]))) == "Ок."
+    assert router.asked == ["llama-3.3-70b-versatile"]
+    health = client.get("/api/health").json()
+    assert health["model"] == "llama-3.3-70b-versatile" and health["model_status"] == "yes"
+    assert health["configured_model"] == "llama-3.3-70b"

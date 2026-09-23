@@ -22,46 +22,63 @@ def _load_dotenv() -> None:
 
 _load_dotenv()
 
+
+# Пустая переменная = не задана. Так бывает, когда в панель хостинга
+# (Vercel и др.) импортируют .env.example с пустыми полями.
+def _str(name: str, default: str = "") -> str:
+    return (os.getenv(name) or "").strip() or default
+
+
+def _num(name: str, default, kind=float):
+    raw = _str(name)
+    if not raw:
+        return default
+    try:
+        return kind(raw)
+    except ValueError:
+        raise SystemExit(f"{name}={raw!r}: ожидается число, например {default}") from None
+
+
 # --- Провайдер модели ---
 # groq | openai | ollama | demo. Пусто — groq, если есть ключ, иначе ollama.
 _PRESETS = {
-    "groq": ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
+    "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-120b"),
     "openai": ("https://openrouter.ai/api/v1", ""),  # модель укажите в LLM_MODEL
 }
 
-GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "").strip()
-LLM_API_KEY: str = os.getenv("LLM_API_KEY", "").strip() or GROQ_API_KEY
+GROQ_API_KEY: str = _str("GROQ_API_KEY")
+LLM_API_KEY: str = _str("LLM_API_KEY") or GROQ_API_KEY
 
-LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "").strip().lower() or ("groq" if GROQ_API_KEY else "ollama")
+LLM_PROVIDER: str = _str("LLM_PROVIDER").lower() or ("groq" if LLM_API_KEY or os.getenv("VERCEL") else "ollama")
 if LLM_PROVIDER not in ("groq", "openai", "ollama", "demo"):
     raise SystemExit(f"LLM_PROVIDER={LLM_PROVIDER!r}: допустимо groq, openai, ollama или demo")
 
 _base, _model = _PRESETS.get(LLM_PROVIDER, ("", ""))
-LLM_BASE_URL: str = (os.getenv("LLM_BASE_URL", "").strip() or _base).rstrip("/")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "").strip() or _model
-LLM_TIMEOUT: float = float(os.getenv("LLM_TIMEOUT", "60"))
-LLM_PROXY: str = os.getenv("LLM_PROXY", "").strip()
+LLM_BASE_URL: str = _str("LLM_BASE_URL", _base).rstrip("/")
+LLM_MODEL: str = _str("LLM_MODEL", _model)
+LLM_TIMEOUT: float = _num("LLM_TIMEOUT", 60)
+LLM_PROXY: str = _str("LLM_PROXY")
 # demo — если облако не ответило, продолжить на заготовках вместо ошибки
-LLM_FALLBACK: str = os.getenv("LLM_FALLBACK", "").strip().lower()
+LLM_FALLBACK: str = _str("LLM_FALLBACK").lower()
 
 # --- Ollama ---
-OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
-OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma4:31b-cloud")
-OLLAMA_TIMEOUT: float = float(os.getenv("OLLAMA_TIMEOUT", "180"))
+OLLAMA_URL: str = _str("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
+OLLAMA_MODEL: str = _str("OLLAMA_MODEL", "gemma4:31b-cloud")
+OLLAMA_TIMEOUT: float = _num("OLLAMA_TIMEOUT", 180)
 
 # --- Генерация ---
-TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0.75"))
-TOP_P: float = float(os.getenv("TOP_P", "0.9"))
-NUM_PREDICT: int = int(os.getenv("NUM_PREDICT", "400"))
+TEMPERATURE: float = _num("TEMPERATURE", 0.75)
+TOP_P: float = _num("TOP_P", 0.9)
+NUM_PREDICT: int = _num("NUM_PREDICT", 400, int)
 
 # --- Диалог ---
-MAX_HISTORY_MESSAGES: int = int(os.getenv("MAX_HISTORY_MESSAGES", "24"))
-SESSION_TTL_SECONDS: int = int(os.getenv("SESSION_TTL_SECONDS", str(60 * 60 * 6)))
-MAX_MESSAGE_CHARS: int = int(os.getenv("MAX_MESSAGE_CHARS", "4000"))
+MAX_HISTORY_MESSAGES: int = _num("MAX_HISTORY_MESSAGES", 24, int)
+SESSION_TTL_SECONDS: int = _num("SESSION_TTL_SECONDS", 60 * 60 * 6, int)
+MAX_MESSAGE_CHARS: int = _num("MAX_MESSAGE_CHARS", 4000, int)
 
 # --- Защита ---
-RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
+RATE_LIMIT_PER_MINUTE: int = _num("RATE_LIMIT_PER_MINUTE", 30, int)
 
 # --- Сервер ---
-HOST: str = os.getenv("HOST", "127.0.0.1")
-PORT: int = int(os.getenv("PORT", "8000"))
+HOST: str = _str("HOST", "127.0.0.1")
+PORT: int = _num("PORT", 8000, int)

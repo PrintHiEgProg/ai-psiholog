@@ -533,24 +533,11 @@
     display: block;
   }
 
-  /* полоса со сценой закреплена сверху, главы прокручиваются под ней */
+  /* на телефоне сцена — обычный блок в начале страницы: встречает и уезжает
+     вместе с прокруткой, а не закрывает текст половиной экрана */
   .stage {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    height: 44svh;
-    background: var(--paper);
-  }
-
-  .stage::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -1.6rem;
-    height: 1.6rem;
-    background: linear-gradient(var(--paper), transparent);
-    pointer-events: none;
+    position: relative;
+    height: clamp(240px, 42svh, 340px);
   }
 
   .stage-hint {
